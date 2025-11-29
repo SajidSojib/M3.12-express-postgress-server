@@ -31,17 +31,39 @@ const initDB = async () => {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT NOW()
         )`);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS todos (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                title VARCHAR(150) NOT NULL,
+                completed BOOLEAN DEFAULT FALSE,
+                due_date DATE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`);
 };
 
 initDB();
 
 
+// routes
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!");
 });
 
-app.post('/users', (req: Request, res: Response) => {
-  res.status(201).json(req.body);
+app.post('/users', async (req: Request, res: Response) => {
+    try {
+        const { name, email, age, phone, address } = req.body;
+
+        const result = await pool.query(
+            'INSERT INTO users (name, email, age, phone, address) VALUES ($1, $2, $3, $4, $5) RETURNING *', [name, email, age, phone, address]            
+        );
+        res.status(201).json({ success: true, message: 'User created successfully', data: result.rows[0] });
+    } catch (error: any) {
+        // console.error(error);
+        res.status(500).json({ success: false, message: error?.message });
+    }
 });
 
 app.listen(port, () => {
