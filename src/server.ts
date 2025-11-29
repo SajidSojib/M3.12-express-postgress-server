@@ -34,14 +34,16 @@ const initDB = async () => {
 
         await pool.query(`
             CREATE TABLE IF NOT EXISTS todos (
-                id SERIAL PRIMARY KEY,
-                user_id INT REFERENCES users(id) ON DELETE CASCADE,
-                title VARCHAR(150) NOT NULL,
-                completed BOOLEAN DEFAULT FALSE,
-                due_date DATE,
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )`);
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            title VARCHAR(150) NOT NULL,
+            description TEXT,
+            completed BOOLEAN DEFAULT FALSE,
+            due_date DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+        console.log(`done`);
 };
 
 initDB();
@@ -52,6 +54,7 @@ app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!");
 });
 
+// users
 app.post('/users', async (req: Request, res: Response) => {
     try {
         const { name, email, age, phone, address } = req.body;
@@ -124,6 +127,36 @@ app.delete('/users/:id', async (req: Request, res: Response) => {
     }
 })
 
+
+// todos
+app.post('/todos', async (req: Request, res: Response) => {
+    try {
+        const { user_id, title, description, completed, due_date } = req.body;
+        const result = await pool.query(
+            'INSERT INTO todos (user_id, title, description, completed, due_date) VALUES ($1, $2, $3, $4 , $5) RETURNING *',
+            [user_id, title, description, completed, due_date]
+        );
+        res.status(201).json({ success: true, message: 'Todo created successfully', data: result.rows[0] });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error?.message });
+    }
+});
+
+app.get('/todos', async (req: Request, res: Response) => {
+    try {
+        const result = await pool.query('SELECT * FROM todos');
+        res.status(200).json({ success: true, message: 'Todos fetched successfully', data: result.rows });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error?.message });
+    }
+});
+
+
+
+// 404 route
+app.use((req: Request, res: Response) => {
+    res.status(404).json({ success: false, message: 'Route not found', path: req.url });
+});
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
